@@ -1,0 +1,126 @@
+<<!DOCTYPE html>
+<html>
+<head>
+  <title>RTK POLL</title>
+  <style>
+    body {
+      font-family: Arial;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .poll {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 500px;
+      margin: auto;
+    }
+    .option {
+      margin-bottom: 10px;
+    }
+    .results {
+      margin-top: 20px;
+    }
+    .bar {
+      height: 20px;
+      background: lightblue;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="poll">
+    <h3>
+      IF SOMEONE TELLS YOU TO DELETE ANY TWO OF THE FOLLOWING THINGS FROM YOUR LIFE,
+      WHICH TWO WOULD YOU PREFER TO REMOVE?
+    </h3>
+    <div class="option"><input type="checkbox" name="opt" value="Option 1"> FAMILY</div>
+    <div class="option"><input type="checkbox" name="opt" value="Option 2"> ROLLS ROYCE</div>
+    <div class="option"><input type="checkbox" name="opt" value="Option 3"> MONEY</div>
+    <div class="option"><input type="checkbox" name="opt" value="Option 4"> FRIENDS</div>
+    <div class="option"><input type="checkbox" name="opt" value="Option 5"> I AM CONFUSED</div>
+    <button onclick="submitVote()">Submit</button>
+
+    <div class="results" id="results"></div>
+  </div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
+
+  <script>
+    // ✅ Your Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyAR_oU3wUg-5jKXcieb6IVdFcmRMmCK-X4",
+      authDomain: "rtk-vote.firebaseapp.com",
+      projectId: "rtk-vote",
+      storageBucket: "rtk-vote.firebasestorage.app",
+      messagingSenderId: "180971780202",
+      appId: "1:180971780202:web:2345af1438ad98ba847213"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const pollDoc = db.collection("poll").doc("votes");
+
+    const labels = {
+      "Option 1": "FAMILY",
+      "Option 2": "ROLLS ROYCE",
+      "Option 3": "MONEY",
+      "Option 4": "FRIENDS",
+      "Option 5": "I AM CONFUSED"
+    };
+
+    async function submitVote() {
+      const checked = Array.from(document.querySelectorAll('input[name="opt"]:checked'));
+      const selected = checked.map(c => c.value);
+
+      // ✅ Only "I AM CONFUSED" selected
+      if (selected.length === 1 && selected[0] === "Option 5") {
+        await vote(selected);
+        return;
+      }
+
+      // ✅ Any 2 options (including "confused" if needed)
+      if (selected.length === 2) {
+        await vote(selected);
+        return;
+      }
+
+      alert("Please select exactly 2 options, or only 'I AM CONFUSED'.");
+    }
+
+    async function vote(selected) {
+      await db.runTransaction(async (t) => {
+        const doc = await t.get(pollDoc);
+        let data = doc.exists ? doc.data() : {};
+        selected.forEach(opt => {
+          data[opt] = (data[opt] || 0) + 1;
+        });
+        t.set(pollDoc, data);
+      });
+
+      showResults();
+    }
+
+    async function showResults() {
+      const res = await pollDoc.get();
+      const data = res.data() || {};
+      const totalVotes = Object.values(data).reduce((a, b) => a + b, 0);
+
+      let html = "<h4>Results:</h4>";
+      for (let opt of ["Option 1", "Option 2", "Option 3", "Option 4", "Option 5"]) {
+        const count = data[opt] || 0;
+        const percent = totalVotes ? ((count / totalVotes) * 100).toFixed(1) : 0;
+        html += `
+          <div>${labels[opt]}: ${percent}% (${count} votes)
+            <div class="bar" style="width:${percent}%"></div>
+          </div><br>`;
+      }
+      document.getElementById("results").innerHTML = html;
+    }
+
+    showResults();
+  </script>
+</body>
+</html>
